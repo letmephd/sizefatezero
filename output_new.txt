@@ -1,0 +1,236 @@
+ ~/experiments/gaojiayi/FatezeroDragon/FateZero/test_fatezero.py:313
+    309                 test(config=config, **Omegadict_checkpoint)
+    312 if __name__ == "__main__":
+--> 313     run()
+
+File /data/yinzijin/miniconda3/envs/fatezero38/lib/python3.8/site-packages/click/core.py:1157, in BaseCommand.__call__(self, *args, **kwargs)
+   1155 def __call__(self, *args: t.Any, **kwargs: t.Any) -> t.Any:
+   1156     """Alias for :meth:`main`."""
+-> 1157     return self.main(*args, **kwargs)
+
+File /data/yinzijin/miniconda3/envs/fatezero38/lib/python3.8/site-packages/click/core.py:1078, in BaseCommand.main(self, args, prog_name, complete_var, standalone_mode, windows_expand_args, **extra)
+   1076 try:
+   1077     with self.make_context(prog_name, args, **extra) as ctx:
+-> 1078         rv = self.invoke(ctx)
+   1079         if not standalone_mode:
+   1080             return rv
+
+File /data/yinzijin/miniconda3/envs/fatezero38/lib/python3.8/site-packages/click/core.py:1434, in Command.invoke(self, ctx)
+   1431     echo(style(message, fg="red"), err=True)
+   1433 if self.callback is not None:
+-> 1434     return ctx.invoke(self.callback, **ctx.params)
+
+File /data/yinzijin/miniconda3/envs/fatezero38/lib/python3.8/site-packages/click/core.py:783, in Context.invoke(_Context__self, _Context__callback, *args, **kwargs)
+    781 with augment_usage_errors(__self):
+    782     with ctx:
+--> 783         return __callback(*args, **kwargs)
+
+File ~/experiments/gaojiayi/FatezeroDragon/FateZero/test_fatezero.py:286, in run(config)
+    284 Omegadict = OmegaConf.load(config)
+    285 if 'unet' in os.listdir(Omegadict['pretrained_model_path']):
+--> 286     test(config=config, **Omegadict)
+    287 else:
+    288     # Go through all ckpt if possible
+    289     checkpoint_list = sorted(glob(os.path.join(Omegadict['pretrained_model_path'], 'checkpoint_*')))
+
+File ~/experiments/gaojiayi/FatezeroDragon/FateZero/test_fatezero.py:265, in test(config, pretrained_model_path, dataset_config, logdir, editing_config, test_pipeline_config, gradient_accumulation_steps, seed, mixed_precision, batch_size, model_config, verbose, **kwargs)
+    262         unet.eval()
+    263         # video_diffusion.pipelines.p2p_validation_loop.P2pSampleLogger
+    264         # 这一步很关键
+--> 265         validation_sample_logger.log_sample_images( 
+    266             image=images, # torch.Size([8, 3, 512, 512])
+    267             mask=masks, # torch.Size([8, 1, 512, 512])
+    268             pipeline=pipeline,
+    269             estimator = estimator,
+    270             device=accelerator.device,
+    271             step=0,
+    272             latents = batch['ddim_init_latents'], # torch.Size([1, 4, 8, 64, 64])
+    273             ddim_latents = batch['latents_all_step'], # 51 [1, 4, 8, 64, 64]
+    274             save_dir = logdir if verbose else None
+    275         )
+    276     # accelerator.log(logs, step=step)
+    278 accelerator.end_training()
+
+File ~/experiments/gaojiayi/FatezeroDragon/FateZero/video_diffusion/pipelines/p2p_validation_loop.py:119, in P2pSampleLogger.log_sample_images(self, pipeline, estimator, device, step, image, latents, ddim_latents, mask, uncond_embeddings_list, save_dir)
+    117 generator = torch.Generator(device=device)
+    118 generator.manual_seed(seed)
+--> 119 sequence_return = pipeline(
+    120     prompt=input_prompt,
+    121     source_prompt = self.editing_prompts[0] if self.source_prompt is None else self.source_prompt,
+    122     edit_type = edit_type,
+    123     image=image, # torch.Size([8, 3, 512, 512])
+    124     mask=mask,
+    125     strength=self.strength,
+    126     generator=generator,
+    127     estimator= estimator,
+    128     num_inference_steps=self.num_inference_steps,
+    129     clip_length=self.clip_length,
+    130     guidance_scale=self.guidance_scale,
+    131     num_images_per_prompt=1,
+    132     # used in null inversion
+    133     latents = latents, # [1, 4, 8, 64, 64]
+    134     ddim_latents = ddim_latents,
+    135     uncond_embeddings_list = uncond_embeddings_list,
+    136     save_path = save_dir,
+    137     **p2p_config_now,
+    138 )
+    139 if self.prompt2prompt_edit: #True
+    140     sequence = sequence_return['sdimage_output'].images[0]
+
+File ~/experiments/gaojiayi/FatezeroDragon/FateZero/video_diffusion/pipelines/p2p_ddim_spatial_temporal.py:341, in P2pDDIMSpatioTemporalPipeline.__call__(self, **kwargs)
+    337     return dict_output
+    339 if edit_type == 'swap':
+--> 341     return self.p2preplace_edit(**kwargs)
+
+File ~/experiments/gaojiayi/FatezeroDragon/FateZero/video_diffusion/pipelines/p2p_ddim_spatial_temporal.py:287, in P2pDDIMSpatioTemporalPipeline.p2preplace_edit(self, **kwargs)
+    283 attention_util.register_attention_control(self, edit_controller)
+    286 # In ddim inferece, no need source prompt
+--> 287 sdimage_output = self.sd_ddim_pipeline(
+    288     controller = edit_controller, 
+    289     # target_prompt = kwargs['prompts'][1],
+    290     **kwargs)
+    291 if hasattr(edit_controller.latent_blend, 'mask_list'):
+    292     mask_list = edit_controller.latent_blend.mask_list
+
+File ~/experiments/gaojiayi/FatezeroDragon/FateZero/video_diffusion/pipelines/p2p_ddim_spatial_temporal.py:548, in P2pDDIMSpatioTemporalPipeline.sd_ddim_pipeline(self, prompt, image, mask, height, width, strength, estimator, num_inference_steps, guidance_scale, negative_prompt, num_images_per_prompt, eta, generator, latents, ddim_latents, output_type, return_dict, callback, callback_steps, controller, **args)
+    543 latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
+    545 # print("test1")
+    546 # from IPython import embed; embed()
+--> 548 noise_pred = self.unet(
+    549     latent_model_input, t, encoder_hidden_states=text_embeddings
+    550 ).sample.to(dtype=latents_dtype)
+    551 guidance = self.guidance_move(latent=latents, latent_noise_ref=latent_noise_ref[-(i+1)], t=t, estimator = estimator, text_embeddings=text_embeddings_org[1].unsqueeze(0), energy_scale=500, **edit_kwargs) 
+    553 # perform guidance
+
+File /data/yinzijin/miniconda3/envs/fatezero38/lib/python3.8/site-packages/torch/nn/modules/module.py:1130, in Module._call_impl(self, *input, **kwargs)
+   1126 # If we don't have any hooks, we want to skip the rest of the logic in
+   1127 # this function, and just call forward.
+   1128 if not (self._backward_hooks or self._forward_hooks or self._forward_pre_hooks or _global_backward_hooks
+   1129         or _global_forward_hooks or _global_forward_pre_hooks):
+-> 1130     return forward_call(*input, **kwargs)
+   1131 # Do not call functions when jit is used
+   1132 full_backward_hooks, non_full_backward_hooks = [], []
+
+File /data/yinzijin/miniconda3/envs/fatezero38/lib/python3.8/site-packages/accelerate/utils/operations.py:490, in ConvertOutputsToFp32.__call__(self, *args, **kwargs)
+    489 def __call__(self, *args, **kwargs):
+--> 490     return convert_to_fp32(self.model_forward(*args, **kwargs))
+
+File /data/yinzijin/miniconda3/envs/fatezero38/lib/python3.8/site-packages/torch/amp/autocast_mode.py:12, in autocast_decorator.<locals>.decorate_autocast(*args, **kwargs)
+      9 @functools.wraps(func)
+     10 def decorate_autocast(*args, **kwargs):
+     11     with autocast_instance:
+---> 12         return func(*args, **kwargs)
+
+File ~/experiments/gaojiayi/FatezeroDragon/FateZero/video_diffusion/models/unet_3d_condition.py:390, in UNetPseudo3DConditionModel.forward(self, sample, timestep, encoder_hidden_states, class_labels, attention_mask, return_dict)
+    386 for downsample_block in self.down_blocks:
+    387     if hasattr(downsample_block, "has_cross_attention") and downsample_block.has_cross_attention:
+    388         # print("test videomodel6_")
+    389         # from IPython import embed; embed()
+--> 390         sample, res_samples = downsample_block(
+    391             hidden_states=sample, # [1, 320, 8, 64, 64]
+    392             temb=emb, # [1, 1280]
+    393             encoder_hidden_states=encoder_hidden_states, # 1, 77, 768
+    394             attention_mask=attention_mask, #一直就是None
+    395         )
+    396         # [1, 320, 8, 32, 32],tuple
+    397     else:
+    398         sample, res_samples = downsample_block(hidden_states=sample, temb=emb)
+
+File /data/yinzijin/miniconda3/envs/fatezero38/lib/python3.8/site-packages/torch/nn/modules/module.py:1130, in Module._call_impl(self, *input, **kwargs)
+   1126 # If we don't have any hooks, we want to skip the rest of the logic in
+   1127 # this function, and just call forward.
+   1128 if not (self._backward_hooks or self._forward_hooks or self._forward_pre_hooks or _global_backward_hooks
+   1129         or _global_forward_hooks or _global_forward_pre_hooks):
+-> 1130     return forward_call(*input, **kwargs)
+   1131 # Do not call functions when jit is used
+   1132 full_backward_hooks, non_full_backward_hooks = [], []
+
+File ~/experiments/gaojiayi/FatezeroDragon/FateZero/video_diffusion/models/unet_3d_blocks.py:329, in CrossAttnDownBlockPseudo3D.forward(self, hidden_states, temb, encoder_hidden_states, attention_mask)
+    327     else:
+    328         hidden_states = resnet(hidden_states, temb)
+--> 329         hidden_states = attn(hidden_states, encoder_hidden_states=encoder_hidden_states).sample
+    331     output_states += (hidden_states,)
+    333 if self.downsamplers is not None:
+
+File /data/yinzijin/miniconda3/envs/fatezero38/lib/python3.8/site-packages/torch/nn/modules/module.py:1130, in Module._call_impl(self, *input, **kwargs)
+   1126 # If we don't have any hooks, we want to skip the rest of the logic in
+   1127 # this function, and just call forward.
+   1128 if not (self._backward_hooks or self._forward_hooks or self._forward_pre_hooks or _global_backward_hooks
+   1129         or _global_forward_hooks or _global_forward_pre_hooks):
+-> 1130     return forward_call(*input, **kwargs)
+   1131 # Do not call functions when jit is used
+   1132 full_backward_hooks, non_full_backward_hooks = [], []
+
+File ~/experiments/gaojiayi/FatezeroDragon/FateZero/video_diffusion/models/attention.py:122, in SpatioTemporalTransformerModel.forward(self, hidden_states, encoder_hidden_states, timestep, return_dict)
+    120 # 2. Blocks
+    121 for block in self.transformer_blocks:
+--> 122     hidden_states = block(
+    123         hidden_states, # [16, 4096, 320]
+    124         encoder_hidden_states=encoder_hidden_states, # ([1, 77, 768]
+    125         timestep=timestep,
+    126         clip_length=clip_length,
+    127     )
+    129 # 3. Output
+    130 if not self.use_linear_projection:
+
+File /data/yinzijin/miniconda3/envs/fatezero38/lib/python3.8/site-packages/torch/nn/modules/module.py:1130, in Module._call_impl(self, *input, **kwargs)
+   1126 # If we don't have any hooks, we want to skip the rest of the logic in
+   1127 # this function, and just call forward.
+   1128 if not (self._backward_hooks or self._forward_hooks or self._forward_pre_hooks or _global_backward_hooks
+   1129         or _global_forward_hooks or _global_forward_pre_hooks):
+-> 1130     return forward_call(*input, **kwargs)
+   1131 # Do not call functions when jit is used
+   1132 full_backward_hooks, non_full_backward_hooks = [], []
+
+File ~/experiments/gaojiayi/FatezeroDragon/FateZero/video_diffusion/models/attention.py:295, in SpatioTemporalTransformerBlock.forward(self, hidden_states, encoder_hidden_states, timestep, attention_mask, clip_length)
+    293     kwargs.update(SparseCausalAttention_index = self.model_config['SparseCausalAttention_index'])
+    294 # print("test1")
+--> 295 hidden_states = hidden_states + self.attn1(**kwargs) # 到这的函数都是不影响的也是想保留的
+    297 if clip_length is not None and self.temporal_attention_position == "after_spatial":
+    298     hidden_states = self.apply_temporal_attention(hidden_states, timestep, clip_length)
+
+File /data/yinzijin/miniconda3/envs/fatezero38/lib/python3.8/site-packages/torch/nn/modules/module.py:1130, in Module._call_impl(self, *input, **kwargs)
+   1126 # If we don't have any hooks, we want to skip the rest of the logic in
+   1127 # this function, and just call forward.
+   1128 if not (self._backward_hooks or self._forward_hooks or self._forward_pre_hooks or _global_backward_hooks
+   1129         or _global_forward_hooks or _global_forward_pre_hooks):
+-> 1130     return forward_call(*input, **kwargs)
+   1131 # Do not call functions when jit is used
+   1132 full_backward_hooks, non_full_backward_hooks = [], []
+
+File ~/experiments/gaojiayi/FatezeroDragon/FateZero/video_diffusion/prompt_attention/attention_register.py:207, in register_attention_control.<locals>.attention_controlled_forward.<locals>.spatial_temporal_forward(hidden_states, encoder_hidden_states, attention_mask, clip_length, SparseCausalAttention_index)
+    204     hidden_states = hidden_states.to(query.dtype)
+    205 else:
+    206 # if self._slice_size is None or query.shape[0] // self._slice_size == 1:
+--> 207     hidden_states = _attention(query, key, value, attention_mask=attention_mask, is_cross=False)
+    208 # else:
+    209 #     hidden_states = self._sliced_attention(
+    210 #         query, key, value, hidden_states.shape[1], dim, attention_mask
+    211 #     )
+    212 
+    213 # linear proj
+    214 hidden_states = to_out(hidden_states)
+
+File ~/experiments/gaojiayi/FatezeroDragon/FateZero/video_diffusion/prompt_attention/attention_register.py:49, in register_attention_control.<locals>.attention_controlled_forward.<locals>._attention(query, key, value, is_cross, attention_mask)
+     45 attention_probs = attention_probs.to(value.dtype)
+     47 # START OF CORE FUNCTION
+     48 # Record during inversion and edit the attention probs during editing
+---> 49 attention_probs = controller(reshape_batch_dim_to_temporal_heads(attention_probs), 
+     50                              is_cross, place_in_unet) # 这一步很重要
+     51 attention_probs = reshape_temporal_heads_to_batch_dim(attention_probs)
+     52 # END OF CORE FUNCTION
+     53 
+     54 # compute attention output
+
+File ~/experiments/gaojiayi/FatezeroDragon/FateZero/video_diffusion/prompt_attention/attention_store.py:46, in AttentionControl.__call__(self, attn, is_cross, place_in_unet)
+     43     else:
+     44         # For classifier-free guidance scale!=1
+     45         h = attn.shape[0]
+---> 46         attn[h // 2:] = self.forward(attn[h // 2:], is_cross, place_in_unet)
+     47 self.cur_att_layer += 1
+     49 return attn
+
+File ~/experiments/gaojiayi/FatezeroDragon/FateZero/video_diffusion/prompt_attention/attention_util.py:129, in AttentionControlEdit.forward(self, attn, is_cross, place_in_unet, judge)
+    127 self.update_attention_position_dict(key)
+    128 # if judge:
+--> 129 from IPython import embed;embed()

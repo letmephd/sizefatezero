@@ -1,0 +1,5 @@
+# Ignore the 'data', 'ckpt', 'result', and 'trash' directories in the 'FateZero' directory
+data/
+ckpt/
+result/
+trash/

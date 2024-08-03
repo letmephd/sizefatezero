@@ -1,0 +1,61 @@
+# CUDA_VISIBLE_DEVICES=2 python train_tune_a_video.py --config config/tune/swan.yaml
+# There is no obvious difference between v1-4 and v1-4, we just choose to tune v1-5 randomly at the beginning of this project.
+# pretrained_model_path: "/data/yinzijin/checkpoints/stable-diffusion/stable-diffusion-v1-5"
+pretrained_model_path: "/home/yinzijin/experiments/gaojiayi/FatezeroDragon/FateZero/result/tune/swan_240803-010001/checkpoint_150"
+
+dataset_config:
+    path: "data/C19_swan_small/raw_video"
+    prompt: "a black swan with a red beak swimming in a river near a wall and bushes,"
+    n_sample_frame: 8
+    mask_path: "data/C19_swan_small/raw_object_mask"
+    # n_sample_frame: 22
+    class_data_root: "/home/yinzijin/experiments/gaojiayi/MagicStick/new_magicstick/FateZero/trash/bird"
+    class_data_prompt: "a photo of a bird"
+
+    sampling_rate: 1
+    stride: 80
+    offset: 
+        left: 0
+        right: 0
+        top: 0
+        bottom: 0
+
+editing_config:
+    use_invertion_latents: True
+    use_inversion_attention: True
+    guidance_scale: 7.5
+    editing_prompts: [
+        # source prompt
+        a black swan with a red beak swimming in a river near a wall and bushes,
+
+        # foreground color and species
+        # a white duck with a yellow beak swimming in a river near a wall and bushes,x
+    ]
+    clip_length: "${..dataset_config.n_sample_frame}"
+    sample_seeds: [12734]
+    
+    num_inference_steps: 50 # 15 minutes
+    strength: 0.99
+
+trainer_pipeline_config:
+    target: video_diffusion.trainer.ddpm_trainer.DDPMTrainer
+
+test_pipeline_config:
+    target: video_diffusion.pipelines.ddim_spatial_temporal.DDIMSpatioTemporalStableDiffusionPipeline
+
+model_config:
+    lora: 160
+    # temporal_downsample_time: 4
+    # SparseCausalAttention_index: [-1, 1, 'first', 'last'] 
+
+enable_xformers: True
+mixed_precision: 'fp16'
+gradient_checkpointing: True
+
+train_steps: 200
+validation_steps: 50 # 10 minutes
+checkpointing_steps: 50
+seed: 74831
+learning_rate: 1e-5
+# prior_preservation: 1.0
+train_temporal_conv: True
